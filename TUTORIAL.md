@@ -54,6 +54,7 @@ end
 ```
 Now we can run `rake db:migrate` to migrate our changes.
 
+
 ##Step 2 - Word Model
 Following the README, we can see the next thing we need is a `Word` model.  Let's take a look in `models/word.rb` and see what we have. Right now it's empty class. Since we do not need to build out any functionality in this model, we are good to go here.
 
@@ -62,7 +63,10 @@ class Word < ActiveRecord::Base
 end
 ```
 
+
 ##Step 3 - Search Model
+Let's run `rspec` We can see that our first tests are looking for the main functionality of our `Search` model.
+
 Let's take a look at `models/search.rb`. Right now it's a blank class.
 
 ```ruby
@@ -86,7 +90,7 @@ Let's go a head and run `rspec` to see what our tests say. Great! It looks like 
 
 ##Step 4 - Controllers and Views
 
-In order for our `models` to talk to our database and serve content to our views (that don't exist yet), we are going to need controllers. Let's build those out now.
+In order for our `models` to talk to our database and serve content to our views (that don't exist yet), we are going to need controllers. But first we will need routes, otherwise nothing will work. Let's build those out now.
 
 When we ran `rspec`, we saw:
 
@@ -176,13 +180,21 @@ Let's refresh our browser. Sweet! Now we have an `index` page, with a search box
 ###Error `The action 'index' could not be found for SearchController`
 This sounds familar, let's open our `SearchController`. It's blank, so let's build out some functionality. 
 
-The `SearchControllers` job is to take in the request from the form, talk to the database and display the results. If it does not find any results, it should render a view containing a message that says "no results found." We can this with the following code.
+The `SearchController`'s job is to take in the request from the form, and search for the word in the database, as it's name suggests.
 
 ####Method breakdown: 
-First we search the `Word` database with the `ActiveRecord` method `find_by` for the `:keyword` we entered. If we find it, we redirect to that word. If we do not find it, 
+####Exact Search:
+The first part of our method is looking into the database using the `find_by` method. This method will only return a word if it is an exact match.
+####Fuzzy Search:
+The second part of the method is called on our `Search` class that we built before. This class is responsible for our "fuzzy" search. For example, if you search for "app", it might return "apple" because it contains part of that word. 
+
+In this controller, there are three possible outcomes that can be rendered to the user. 
+
+- It will find the exact word and render that word in the view.
+- It will perform a "fuzzy search", find a word, and display the results.
+- It will perform a "fuzzy serach", won't find a word, and display the "no results" message.
 
 ```ruby
-
 class SearchController < ApplicationController
 
   def index
@@ -202,4 +214,102 @@ Looks like we don't have a view for our search `index` page.
 
 Create `views/search/index.html`
 
-Now if we search again we are redirected to a blank page. 
+
+
+##Search Views
+Now that we have a way to search for and find a word, we need a way to display the results. If you think about it from a user's perspective, it would be nice to hit enter and have our words display in a list on our currently blank `index` page. Let's build that out.
+
+We are going to use partials to keep our `index` page nice clean. We have a conditonal on the `index` page that says, if the results are empty, render the no results partial, otherwise render the results partial.
+
+###`views/search/index.html.erb`
+```ruby
+<h1>Search Results</h1>
+
+<% if @results.empty? %>
+  <%= render 'search/no_results' %>
+<% else %>
+  <%= render 'search/results' %>
+<% end %>
+```
+
+###`views/search/_no_results.html.erb`
+```ruby
+<h3> No results matching that query.</h3>
+```
+
+###`views/search/_results.htm.erb`
+```ruby
+<% @results.each do |result| %>
+  <p><%= link_to result.name, word_path(result) %></p>
+<% end %>
+```
+
+Since our results partial is calling a path called `word_path` we are going to have to create that.
+
+Open up `config/routes.rb` and add the following.
+
+`resources :words, only: [:show, :index]`
+This will give us all of our CRUD routes but only for our `show` and `index` views, which we will create next.
+
+##Word Views
+
+When our search returns a word or list of words, it would be nice if we could click on that word and go to it's show page. Additionally, it would be good if we could go to `/words` and see all of the words in our database. Let's create these views.
+
+####`views/words/index.html.erb`
+```ruby
+<h1>All Words</h1>
+
+<% @words.each do |word| %>
+  <p><%= link_to word.name, word_path(word) %></p>
+<% end %>
+```
+
+####`views/words/show.html.erb`
+
+```ruby
+<h1> <%= @word.name %> </h1>
+```
+
+At this point we should be able to search for a word and have it display the result or the message "No results matching that query."
+
+Let's go ahead and search for "a", which would perform a "fuzzy search" and return a list of all words with "a" in their name.
+
+Perfect! This is working. Now click on a word to go to it's `show` page.  You should see: 
+
+###Error: `The action 'show' could not be found for WordsController`
+
+Let's take a look at our `WordsController`. It's blank, so let's build out our `show` and `index` actions.
+
+```ruby
+def show
+  @word = Word.find(params[:id])
+end
+
+def index
+  @words = Word.all
+end
+```
+
+Let's search again, try to click on a word and we should now see:
+
+###Error:`Missing template words/show`
+
+Looks like we our missing our `words` views, so let's create them.
+
+####`views/words/show.html` 
+
+`<h1> <%= @word.name %> </h1>`
+
+####`views/words/index.html`
+
+```ruby
+<h1>All Words</h1>
+
+<% @words.each do |word| %>
+  <p><%= link_to word.name, word_path(word) %></p>
+<% end %>
+```
+
+We should now be able to visit `/words`, our index page as well as `/words/1` for example, which would be the show page for the first word in the database.
+
+###At this point you should have the full functionality of your app. Nice work!
