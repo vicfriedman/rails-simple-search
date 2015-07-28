@@ -1,9 +1,3 @@
----
-tags: search, rails, intermediate, SQL, partials
-language: ruby
-resources: 0 
----
-
 ### Implementing a Simple Search Feature in Rails
 
 ## Objectives
